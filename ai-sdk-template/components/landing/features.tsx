@@ -1,0 +1,132 @@
+"use client"
+
+import { motion } from "framer-motion"
+import { ShieldCheck, Key, Lock, Upload, Download, FileCheck } from "lucide-react"
+import SectionBadge from "@/components/ui/section-badge"
+import { cn } from "@/lib/utils"
+
+const features = [
+  {
+    title: "AES-256-GCM Encryption",
+    info: "Military-grade symmetric encryption with authenticated encryption. GCM mode provides both confidentiality and integrity verification via auth tags.",
+    icon: Lock,
+    gradient: "from-emerald-500 to-teal-500",
+  },
+  {
+    title: "PBKDF2 Key Wrapping",
+    info: "Derive a strong server-side wrapping key using 600,000 iterations of PBKDF2 with SHA-256. A random salt keeps each file unique.",
+    icon: Key,
+    gradient: "from-blue-500 to-cyan-500",
+  },
+  {
+    title: "AES-KW Key Wrapping",
+    info: "Each file gets a unique random AES key. The server-managed wrapping key protects it using AES Key Wrap for secure key management.",
+    icon: ShieldCheck,
+    gradient: "from-violet-500 to-purple-500",
+  },
+  {
+    title: "Server-Side Encryption",
+    info: "All encryption happens on the backend before files are stored. The browser only shows the in-progress state.",
+    icon: Upload,
+    gradient: "from-orange-500 to-amber-500",
+  },
+  {
+    title: "Integrity Verification",
+    info: "GCM auth tags detect any tampering with encrypted data. Modified ciphertext is automatically rejected during download.",
+    icon: FileCheck,
+    gradient: "from-rose-500 to-pink-500",
+  },
+  {
+    title: "Secure Download",
+    info: "Encrypted files are downloaded through the backend, which unwraps the key and returns the decrypted file securely.",
+    icon: Download,
+    gradient: "from-indigo-500 to-blue-500",
+  },
+]
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+}
+
+export function Features() {
+  return (
+    <section className="py-20 sm:py-24 lg:py-32">
+      <div className="text-center">
+        <SectionBadge title="Security Features" />
+        <motion.h2 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mt-8 text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+        >
+          Built with Cryptographic Best Practices
+        </motion.h2>
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground"
+        >
+          Every security decision follows established standards. No custom cryptography — only battle-tested algorithms from the Web Crypto API.
+        </motion.p>
+      </div>
+
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="mt-16 grid grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2 lg:mt-24 lg:grid-cols-3"
+      >
+        {features.map((feature) => {
+          const Icon = feature.icon;
+          return (
+            <motion.div
+              key={feature.title}
+              variants={item}
+              className={cn(
+                "group relative overflow-hidden rounded-2xl bg-gradient-to-b from-muted/50 to-muted p-8",
+                "ring-1 ring-foreground/10 backdrop-blur-xl transition-all duration-300 hover:ring-foreground/20",
+                "dark:from-muted/30 dark:to-background/80"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br",
+                  feature.gradient,
+                  "ring-1 ring-foreground/10"
+                )}>
+                  <Icon className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground">
+                  {feature.title}
+                </h3>
+              </div>
+              <p className="mt-4 text-muted-foreground">
+                {feature.info}
+              </p>
+              <div className={cn(
+                "absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r",
+                feature.gradient,
+                "opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              )} />
+            </motion.div>
+          );
+        })}
+      </motion.div>
+    </section>
+  )
+} 
