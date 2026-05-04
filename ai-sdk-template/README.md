@@ -1,6 +1,6 @@
 # Vercel AI SDK Template for Next.js
 
-Build and scale AI-powered applications with this Next.js template, which integrates the Vercel AI SDK for streaming, UI components, and React Server Components.
+Build and scale AI-powered applications with this Next.js template, which integrates the Vercel AI SDK for streaming, UI components, and React Server Components. Includes a secure, server-side encrypted file vault for user data protection.
 
 ![Vercel AI SDK OG Image](https://raw.githubusercontent.com/vercel/ai-sdk/main/packages/core/static/og-image.png)
 
@@ -13,6 +13,7 @@ Build and scale AI-powered applications with this Next.js template, which integr
 *   **AI Chat Interface**: A fully functional chat interface with conversation history and management.
 *   **Email & Notifications**: Integrated with Resend for sending transactional emails.
 *   **Tool-Using AI**: Example implementation of an AI that can use tools (e.g., search).
+*   **Server-Side Encrypted Vault**: AES-256-GCM file encryption managed entirely on the backend with secure key wrapping using PBKDF2.
 
 ## Tech Stack
 
@@ -94,6 +95,176 @@ NEXT_PUBLIC_RAGIE_API_KEY=<your_ragie_api_key>
 npm run dev
 ```
 
-### 6. Open the Application
+### 5. Configure Vault Encryption (Optional)
+
+If you plan to use the encrypted vault feature, ensure the `VAULT_ENCRYPTION_SECRET` environment variable is set:
+
+```env
+# Vault Encryption (defaults to Supabase service role key if not set)
+VAULT_ENCRYPTION_SECRET=<your_strong_encryption_secret>
+```
+
+**Note:** For production deployments, **always** set an explicit `VAULT_ENCRYPTION_SECRET` instead of relying on the Supabase service role key fallback.
+
+### 6. Run the Development Server
+
+```bash
+npm run dev
+```
+
+### 7. Open the Application
 
 Open your web browser and navigate to `http://localhost:3000` to view the application.
+
+---
+
+## Encrypted File Vault
+
+The application includes a server-side encrypted file vault for securely storing user files. All encryption happens on the backend, and users only see upload/download progress indicators.
+
+### Architecture
+
+The vault uses a three-layer encryption and key management system:
+
+1. **File Encryption Layer**: AES-256-GCM symmetric encryption
+   - Generates a random 256-bit encryption key for each file
+   - Encrypts the file with AES-256-GCM and a random IV
+   - Stores encrypted blob in Supabase Storage
+
+2. **Key Wrapping Layer**: AES-KW (NIST Key Wrap) symmetric key wrapping
+   - The encryption key is wrapped with a derived wrapping key
+   - Prevents direct access to encryption keys even if the database is compromised
+
+3. **Secret Derivation Layer**: PBKDF2 key derivation
+   - Derives the wrapping key from the server's master secret (`VAULT_ENCRYPTION_SECRET`)
+   - Uses 600,000 iterations and SHA-256 for security
+
+### Data Flow
+
+#### Upload
+
+```
+User selects file
+    ↓
+Client sends to POST /api/vault/upload
+    ↓
+Server generates random AES-256-GCM key
+    ↓
+Server encrypts file with AES-256-GCM
+    ↓
+Server wraps encryption key with derived wrapping key
+    ↓
+Server stores encrypted blob in Supabase Storage
+    ↓
+Server stores file metadata (wrapped key, IV, salt) in database
+    ↓
+Client receives success response with file ID
+```
+
+#### Download
+
+```
+User clicks download
+    ↓
+Client fetches from GET /api/vault/[id]/download
+    ↓
+Server retrieves encrypted blob from Supabase Storage
+    ↓
+Server retrieves metadata (wrapped key, IV, salt) from database
+    ↓
+Server unwraps encryption key using derived wrapping key
+    ↓
+Server decrypts blob with AES-256-GCM
+    ↓
+Client receives plaintext file blob
+    ↓
+Browser downloads file
+```
+
+### Security Properties
+
+- **Encryption in Transit**: All API endpoints use HTTPS in production
+- **Encryption at Rest**: Files are encrypted with AES-256-GCM before storage
+- **Key Isolation**: Each file uses a unique encryption key
+- **Secure Key Wrapping**: Encryption keys are wrapped with a derived wrapping key
+- **No Client-Side Secrets**: Users never handle encryption keys or passwords
+- **Authentication Required**: All vault operations require Supabase session authentication
+- **Server-Side Key Management**: Master encryption secret never leaves the server
+
+### Implementation Details
+
+**Backend Crypto Helper** (`lib/vault-crypto.ts`)
+- `generateEncryptionKey()`: Creates random AES-256-GCM key
+- `deriveWrappingKey(secret, salt)`: PBKDF2 key derivation (600K iterations, SHA-256)
+- `wrapKey(plaintext, secret)`: AES-KW wraps the encryption key
+- `unwrapKey(wrapped, secret)`: AES-KW unwraps to retrieve encryption key
+- `encryptBuffer(data, key, iv)`: AES-256-GCM encryption
+- `decryptBuffer(data, key, iv)`: AES-256-GCM decryption
+
+**Upload API** (`app/api/vault/upload/route.ts`)
+- Receives multipart FormData with file
+- Authenticates user via Supabase session
+- Generates encryption key and encrypts file
+- Wraps key and stores encrypted blob + metadata
+- Returns file record ID
+
+**Download API** (`app/api/vault/[id]/download/route.ts`)
+- Authenticates user via Supabase session
+- Retrieves file metadata and encrypted blob
+- Unwraps and decrypts file server-side
+- Returns plaintext file blob to client
+
+**UI Components**
+- `components/vault/FileUpload.tsx`: File selection and upload UI
+- `components/vault/FileList.tsx`: Displays uploaded files with download capability
+
+### Database Schema
+
+The vault uses the `encrypted_files` table with the following structure:
+
+```sql
+CREATE TABLE encrypted_files (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  filename VARCHAR(255),
+  size INTEGER,
+  wrapped_key BYTEA,
+  iv BYTEA,
+  salt BYTEA,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+## Development
+
+### Running Tests
+
+```bash
+npm test
+```
+
+### Building for Production
+
+```bash
+npm run build
+npm start
+```
+
+### Environment Variables Reference
+
+See `env.example` for all available environment variables and their descriptions.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See LICENSE file for details.
+
+---
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on the GitHub repository.
